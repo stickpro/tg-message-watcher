@@ -1,0 +1,5 @@
+tg_app:
+  app_id: 123
+  app_hash: "string"
+  chat_for_watch: chatId # remove 100 and -100 from id
+  webhook_url: "http://localhost"
