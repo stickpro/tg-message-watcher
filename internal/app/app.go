@@ -51,11 +51,16 @@ func Run(ctx context.Context) error {
 
 	api := tg.NewClient(client)
 
-	handleFunc := func(ctx context.Context, e tg.Entities, update *tg.UpdateEditChannelMessage) error {
+	handleFuncEditMessage := func(ctx context.Context, e tg.Entities, update *tg.UpdateEditChannelMessage) error {
 		return handleEditChannelMessage(ctx, log, cfg, api, update)
 	}
 
-	d.OnEditChannelMessage(handleFunc)
+	handleFuncNewMessage := func(ctx context.Context, e tg.Entities, update *tg.UpdateNewChannelMessage) error {
+		return handleNewChannelMessage(ctx, log, cfg, api, update)
+	}
+
+	d.OnEditChannelMessage(handleFuncEditMessage)
+	d.OnNewChannelMessage(handleFuncNewMessage)
 
 	return client.Run(ctx, func(ctx context.Context) error {
 		if err := client.Auth().IfNecessary(ctx, flow); err != nil {
@@ -109,7 +114,7 @@ func handleEditChannelMessage(ctx context.Context, log *zap.Logger, cfg *config.
 
 	if channel.GetID() == cfg.TgApp.ChatForWatch {
 		text := strings.ToLower(msg.GetMessage())
-		err := sendMessage(text, cfg.TgApp.WebhookUrl)
+		err := sendMessage(text, cfg.TgApp.WebhookUrl, "editMessage")
 		if err != nil {
 			fmt.Println("Error sending message:", err)
 		}
@@ -119,8 +124,28 @@ func handleEditChannelMessage(ctx context.Context, log *zap.Logger, cfg *config.
 	return nil
 }
 
-func sendMessage(text string, webHookUrl string) error {
-	payload := []byte(fmt.Sprintf(`{"text": "%s"}`, text))
+func handleNewChannelMessage(ctx context.Context, log *zap.Logger, cfg *config.Config, api *tg.Client, update *tg.UpdateNewChannelMessage) error {
+	msg, _ := update.GetMessage().(*tg.Message)
+	channel, err := getChannel(ctx, api, msg)
+	if err != nil {
+		log.Error("get channel", zap.Error(err))
+		return err
+	}
+
+	if channel.GetID() == cfg.TgApp.ChatForWatch {
+		text := strings.ToLower(msg.GetMessage())
+		err := sendMessage(text, cfg.TgApp.WebhookUrl, "newMessage")
+		if err != nil {
+			fmt.Println("Error sending message:", err)
+		}
+		log.Info("Message", zap.Any("text", text))
+	}
+
+	return nil
+}
+
+func sendMessage(text string, webHookUrl string, messageType string) error {
+	payload := []byte(fmt.Sprintf(`{"text": "%s", "type": "%s"}`, text, messageType))
 
 	req, err := http.NewRequest("POST", webHookUrl, bytes.NewBuffer(payload))
 	if err != nil {
