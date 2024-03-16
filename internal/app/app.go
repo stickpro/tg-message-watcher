@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/go-faster/errors"
 	"github.com/gotd/td/session"
@@ -16,6 +17,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -114,7 +116,7 @@ func handleEditChannelMessage(ctx context.Context, log *zap.Logger, cfg *config.
 
 	if channel.GetID() == cfg.TgApp.ChatForWatch {
 		text := strings.ToLower(msg.GetMessage())
-		err := sendMessage(text, cfg.TgApp.WebhookUrl, "editMessage")
+		err := sendMessage(text, cfg.TgApp.WebhookUrl, "editMessage", msg.GetID())
 		if err != nil {
 			fmt.Println("Error sending message:", err)
 		}
@@ -127,6 +129,7 @@ func handleEditChannelMessage(ctx context.Context, log *zap.Logger, cfg *config.
 func handleNewChannelMessage(ctx context.Context, log *zap.Logger, cfg *config.Config, api *tg.Client, update *tg.UpdateNewChannelMessage) error {
 	msg, _ := update.GetMessage().(*tg.Message)
 	channel, err := getChannel(ctx, api, msg)
+
 	if err != nil {
 		log.Error("get channel", zap.Error(err))
 		return err
@@ -134,7 +137,7 @@ func handleNewChannelMessage(ctx context.Context, log *zap.Logger, cfg *config.C
 
 	if channel.GetID() == cfg.TgApp.ChatForWatch {
 		text := strings.ToLower(msg.GetMessage())
-		err := sendMessage(text, cfg.TgApp.WebhookUrl, "newMessage")
+		err := sendMessage(text, cfg.TgApp.WebhookUrl, "newMessage", msg.GetID())
 		if err != nil {
 			fmt.Println("Error sending message:", err)
 		}
@@ -144,17 +147,15 @@ func handleNewChannelMessage(ctx context.Context, log *zap.Logger, cfg *config.C
 	return nil
 }
 
-func sendMessage(text string, webHookUrl string, messageType string) error {
-	payload := []byte(fmt.Sprintf(`{"text": "%s", "type": "%s"}`, text, messageType))
+func sendMessage(text string, webHookUrl string, messageType string, messageID int) error {
+	postBody, _ := json.Marshal(map[string]string{
+		"text":       text,
+		"type":       messageType,
+		"message_id": strconv.Itoa(messageID),
+	})
+	responseBody := bytes.NewBuffer(postBody)
+	resp, err := http.Post(webHookUrl, "application/json", responseBody)
 
-	req, err := http.NewRequest("POST", webHookUrl, bytes.NewBuffer(payload))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -163,6 +164,6 @@ func sendMessage(text string, webHookUrl string, messageType string) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
-
 	return nil
+
 }
