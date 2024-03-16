@@ -149,9 +149,9 @@ func handleNewChannelMessage(ctx context.Context, log *zap.Logger, cfg *config.C
 
 func sendMessage(text string, webHookUrl string, messageType string, messageID int) error {
 	postBody, _ := json.Marshal(map[string]string{
-		"text":       text,
-		"type":       messageType,
-		"message_id": strconv.Itoa(messageID),
+		"text":        text,
+		"type":        messageType,
+		"external_id": strconv.Itoa(messageID),
 	})
 	responseBody := bytes.NewBuffer(postBody)
 	resp, err := http.Post(webHookUrl, "application/json", responseBody)
