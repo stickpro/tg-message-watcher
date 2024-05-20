@@ -118,7 +118,12 @@ func getChannel(ctx context.Context, client *tg.Client, channelID int64) (*tg.Ch
 
 func handleEditChannelMessage(ctx context.Context, log *zap.Logger, cfg *config.Config, api *tg.Client, update *tg.UpdateEditChannelMessage) error {
 	msg, _ := update.GetMessage().(*tg.Message)
-	channel, err := getChannel(ctx, api, int64(msg.GetPeerID().(*tg.PeerChannel).ChannelID))
+
+	ch, ok := msg.GetPeerID().(*tg.PeerChannel)
+	if !ok {
+		return errors.New("bad peerID")
+	}
+	channel, err := getChannel(ctx, api, ch.ChannelID)
 	if err != nil {
 		log.Error("get channel", zap.Error(err))
 		return err
@@ -138,7 +143,11 @@ func handleEditChannelMessage(ctx context.Context, log *zap.Logger, cfg *config.
 
 func handleNewChannelMessage(ctx context.Context, log *zap.Logger, cfg *config.Config, api *tg.Client, update *tg.UpdateNewChannelMessage) error {
 	msg, _ := update.GetMessage().(*tg.Message)
-	channel, err := getChannel(ctx, api, int64(msg.GetPeerID().(*tg.PeerChannel).ChannelID))
+	ch, ok := msg.GetPeerID().(*tg.PeerChannel)
+	if !ok {
+		return errors.New("bad peerID")
+	}
+	channel, err := getChannel(ctx, api, ch.ChannelID)
 	if err != nil {
 		log.Error("get channel", zap.Error(err))
 		return err
@@ -221,7 +230,7 @@ func sendMessage(text string, webHookUrl string, messageType string, messageID i
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode > 300 {
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 	return nil
