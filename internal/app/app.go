@@ -19,7 +19,6 @@ import (
 	"go.uber.org/zap/zapcore"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 var allMessages = flag.Bool("all-messages", false, "Fetch and send all historical messages")
@@ -126,7 +125,7 @@ func handleEditChannelMessage(ctx context.Context, log *zap.Logger, cfg *config.
 	}
 
 	if channel.GetID() == cfg.TgApp.ChatForWatch {
-		text := strings.ToLower(msg.GetMessage())
+		text := msg.GetMessage()
 		err := sendMessage(text, cfg.TgApp.WebhookUrl, "editMessage", msg.GetID())
 		if err != nil {
 			log.Error("Error sending message", zap.Error(err))
@@ -146,7 +145,7 @@ func handleNewChannelMessage(ctx context.Context, log *zap.Logger, cfg *config.C
 	}
 
 	if channel.GetID() == cfg.TgApp.ChatForWatch {
-		text := strings.ToLower(msg.GetMessage())
+		text := msg.GetMessage()
 		err := sendMessage(text, cfg.TgApp.WebhookUrl, "newMessage", msg.GetID())
 		if err != nil {
 			log.Error("Error sending message", zap.Error(err))
@@ -190,7 +189,7 @@ func fetchAndProcessMessages(ctx context.Context, log *zap.Logger, cfg *config.C
 				continue
 			}
 
-			text := strings.ToLower(msg.GetMessage())
+			text := msg.GetMessage()
 			err := sendMessage(text, cfg.TgApp.WebhookUrl, "oldMessage", msg.GetID())
 			if err != nil {
 				log.Error("Error sending message", zap.Error(err))
